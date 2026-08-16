@@ -10,15 +10,18 @@ const hasHttpsCerts = fs.existsSync(keyPath) && fs.existsSync(certPath)
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+
   server: {
     host: true,
     port: 5173,
+
     https: hasHttpsCerts
       ? {
           key: fs.readFileSync(keyPath),
           cert: fs.readFileSync(certPath),
         }
       : undefined,
+
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',
@@ -27,8 +30,9 @@ export default defineConfig({
       },
     },
   },
+
   build: {
-    outDir: path.resolve(__dirname, '../backend/static/dist'),
+    outDir: 'dist',
     emptyOutDir: true,
   },
 })
