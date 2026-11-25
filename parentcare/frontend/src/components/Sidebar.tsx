@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   HeartHandshake,
   User,
+  Activity,
   LogOut,
   X,
 } from 'lucide-react';
@@ -30,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { to: '/medicines', label: 'Medications', icon: Pill },
     { to: '/appointments', label: 'Appointments', icon: Calendar },
     { to: '/reports', label: 'Medical Records', icon: FileText },
+    { to: '/health', label: 'Health Monitoring', icon: Activity },
     { to: '/emergency', label: 'Emergency & SOS', icon: PhoneCall, highlight: true },
     { to: '/notifications', label: 'Notifications', icon: Bell },
     ...(user?.role === 'ADMIN'

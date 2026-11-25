@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import timedelta
 from sqlalchemy.orm import Session
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_password_hash, verify_password, create_access_token, decode_token
 from app.models.models import User, UserRole, Notification, NotificationType
@@ -22,18 +23,14 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
             detail="A user with this email already exists."
         )
     
-    # Normalize role
-    role = user_in.role.upper() if user_in.role else UserRole.USER.value
-    if role not in [r.value for r in UserRole]:
-        role = UserRole.USER.value
-
     # Create new user
     db_user = User(
         email=user_in.email.lower().strip(),
         hashed_password=get_password_hash(user_in.password),
         full_name=user_in.full_name.strip(),
         phone=user_in.phone.strip() if user_in.phone else None,
-        role=role,
+        # Public registration must never grant a privileged role.
+        role=UserRole.USER.value,
         is_active=True
     )
     db.add(db_user)
@@ -102,9 +99,14 @@ def update_me(user_update: UserUpdate, db: Session = Depends(get_db), current_us
 
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)
 def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    """Request a password reset link. In production, this would send an email.
-    For development, the reset token is returned directly in the response."""
+    """Create a development reset token; production email delivery is not configured."""
     user = db.query(User).filter(User.email == request.email.lower().strip()).first()
+
+    if settings.APP_ENV == "production":
+        return ForgotPasswordResponse(
+            message="If that email is registered, contact the administrator to reset the account. Email delivery is not configured.",
+            reset_token="",
+        )
 
     # Always return success to avoid leaking which emails are registered
     if not user or not user.is_active:
@@ -121,7 +123,7 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
 
     return ForgotPasswordResponse(
         message="If that email is registered, a reset link has been sent.",
-        reset_token=reset_token
+        reset_token=reset_token,
     )
 
 
@@ -137,7 +139,10 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
         )
 
     user_id = payload.get("sub")
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    try:
+        user = db.query(User).filter(User.id == int(user_id)).first()
+    except (TypeError, ValueError):
+        user = None
 
     if not user or not user.is_active:
         raise HTTPException(

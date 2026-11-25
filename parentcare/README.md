@@ -11,8 +11,9 @@ ParentCare is a full-stack healthcare coordination platform designed for individ
 - **Medication Manager**: Course tracking, dosage frequency, instructions, and status (active, completed, stopped).
 - **Doctor Appointments**: Consultation scheduling, clinic location mapping, status tracking, and doctor notes.
 - **Medical Records Vault**: Secure uploads and downloads for laboratory tests, prescriptions, radiology scans, and discharge summaries.
+- **Health Monitoring**: User-entered blood pressure, glucose, temperature, weight, and heart-rate records with history and simple trends.
 - **Emergency SOS & 1-Tap Calling**: Priority-based directory (Primary, Secondary, Doctor) with direct `tel:` dialing.
-- **Notification Center**: System reminders for daily medications and upcoming clinical appointments.
+- **Notification Center**: Persistent account notifications. Scheduled dose and appointment reminders are not currently delivered.
 - **Role-Based Access Control & Admin Portal**: Multi-role security (`USER`, `ADMIN`, `PARENT`) and account management.
 
 ---
@@ -59,16 +60,21 @@ parentcare/
 ### Backend (`backend/.env` or environment):
 ```env
 PROJECT_NAME="ParentCare"
-SECRET_KEY="parentcare_super_secret_jwt_key_2026_secure_hash"
+APP_ENV=development
+SECRET_KEY="generate-a-unique-secret-and-keep-it-private"
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 DATABASE_URL="sqlite:///./parentcare.db"
 UPLOAD_DIR="./uploads"
+FRONTEND_URL="http://localhost:5173"
+SEED_DEMO_USERS=false
 ```
 
 ### Frontend (`frontend/.env`):
 ```env
-VITE_API_URL="http://localhost:8000/api"
+# Development uses Vite's /api proxy by default.
+# Production must point to the deployed backend:
+# VITE_API_URL="https://your-backend.example.com/api"
 ```
 
 ---
@@ -77,53 +83,59 @@ VITE_API_URL="http://localhost:8000/api"
 
 ### 1. Backend Setup
 ```bash
-cd parentcare/backend
+Set-Location parentcare\backend
 python -m venv .venv
-# On Windows:
 .venv\Scripts\activate
-# On Linux/macOS:
-source .venv/bin/activate
 
 pip install -r requirements.txt
 
-# (Optional) Seed demo data
+# Optional: add fictional demo records only to a local development database.
 python seed_demo.py
 
-# Start Backend server:
+# Start the API:
 uvicorn app.main:app --reload --port 8000
 ```
-Backend API interactive docs: `http://localhost:8000/api/docs`
+API documentation: `http://127.0.0.1:8000/api/docs`
+Database health check: `http://127.0.0.1:8000/healthz`
 
 ### 2. Frontend Setup
 ```bash
-cd parentcare/frontend
+Set-Location parentcare\frontend
 npm install
 npm run dev
 ```
-Frontend development server: `http://localhost:5173`
+Frontend development server: `http://127.0.0.1:5173`
 
 ---
 
-## Demo Credentials (from seeder)
+The Windows convenience scripts at the repository root start both services in separate terminals. The backend script intentionally selects local SQLite for local use.
 
-| Role | Email | Password |
-|---|---|---|
-| **Demo User** | `demo@parentcare.com` | `Demo123!` |
-| **Administrator** | `admin@parentcare.com` | `Admin123!` |
+## Security and privacy notes
 
----
+- Configure a unique `SECRET_KEY` and a production `DATABASE_URL` before deploying. Production startup rejects SQLite and refuses to start without an explicit signing key.
+- Demo users are no longer created automatically. `SEED_DEMO_USERS=true` is only permitted in development. The optional seeder creates fictional data and must never be run against production.
+- If an earlier run created the known demo/admin accounts in a real database, remove or disable them there before deployment; disabling automatic seeding does not remove existing rows.
+- Medical records are stored in the configured upload directory and served only through authenticated API routes. Back up that directory securely alongside the database.
+- Health readings are manually entered, are not verified or diagnostic, and should be interpreted with a healthcare professional. No medical alerts or automatic emergency dispatch are provided.
+- Password reset email delivery is not configured. Development returns a short-lived reset token directly; production does not expose a token and directs users to an administrator.
+- Account access currently belongs to the account that created a parent profile (plus administrators). Shared caregiver invitations and consent-based family access are not implemented.
+- The current interface is English-only. Telugu translations and large-text/high-contrast preferences are not implemented.
 
-## Automated Testing
+## Deployment
 
-Run the full backend test suite:
-```bash
-cd parentcare/backend
-pytest
-```
+The frontend project root is `parentcare/frontend`; build with `npm run build` and publish `dist`. Configure `VITE_API_URL` to the deployed backend URL ending in `/api`, and configure the backend `FRONTEND_URL` to the exact deployed frontend origin.
 
-Run frontend production build test:
-```bash
-cd parentcare/frontend
+The backend project root is `parentcare/backend`; install `requirements.txt` and start with `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Configure `APP_ENV=production`, `SECRET_KEY`, `DATABASE_URL`, `UPLOAD_DIR` (persistent private storage), and `FRONTEND_URL`. The `/healthz` endpoint checks database connectivity.
+
+No hosted deployment URL or external account has been configured. Database tables are created with SQLAlchemy `create_all`; this repository does not yet include a versioned migration system, so review schema changes and take backups before production updates.
+
+## Tests
+
+```powershell
+Set-Location parentcare\backend
+python -m pytest -q
+
+Set-Location ..\frontend
 npm run build
 ```
 

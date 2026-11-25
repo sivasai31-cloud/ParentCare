@@ -18,6 +18,8 @@ import { Emergency } from './pages/Emergency';
 import { Notifications } from './pages/Notifications';
 import { Admin } from './pages/Admin';
 import { Profile } from './pages/Profile';
+import { Health } from './pages/Health';
+import { Landing } from './pages/Landing';
 
 export const App: React.FC = () => {
   return (
@@ -25,6 +27,7 @@ export const App: React.FC = () => {
       <AuthProvider>
         <Routes>
           {/* Public Routes */}
+          <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -33,13 +36,13 @@ export const App: React.FC = () => {
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/parents" element={<Parents />} />
               <Route path="/parents/:id" element={<ParentDetail />} />
               <Route path="/medicines" element={<Medicines />} />
               <Route path="/appointments" element={<Appointments />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/health" element={<Health />} />
               <Route path="/emergency" element={<Emergency />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/profile" element={<Profile />} />

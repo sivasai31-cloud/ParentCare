@@ -91,7 +91,7 @@ class ApiClient {
   }
 
   getDownloadUrl(fileId: number): string {
-    return `${BASE_URL}/reports/${fileId}/download`;
+    return `${BASE_URL}/reports/${fileId}/file`;
   }
 }
 

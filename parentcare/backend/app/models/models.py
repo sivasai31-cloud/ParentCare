@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 import enum
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -37,6 +37,13 @@ class NotificationType(str, enum.Enum):
     APPOINTMENT = "appointment"
     SYSTEM = "system"
     EMERGENCY = "emergency"
+
+class HealthMetric(str, enum.Enum):
+    BLOOD_PRESSURE = "blood_pressure"
+    BLOOD_GLUCOSE = "blood_glucose"
+    TEMPERATURE = "temperature"
+    WEIGHT = "weight"
+    HEART_RATE = "heart_rate"
 
 class User(Base):
     __tablename__ = "users"
@@ -79,6 +86,7 @@ class Parent(Base):
     appointments = relationship("Appointment", back_populates="parent", cascade="all, delete-orphan")
     reports = relationship("MedicalReport", back_populates="parent", cascade="all, delete-orphan")
     emergency_contacts = relationship("EmergencyContact", back_populates="parent", cascade="all, delete-orphan")
+    health_readings = relationship("HealthReading", back_populates="parent", cascade="all, delete-orphan")
 
 
 class Medicine(Base):
@@ -150,6 +158,21 @@ class EmergencyContact(Base):
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
     parent = relationship("Parent", back_populates="emergency_contacts")
+
+class HealthReading(Base):
+    __tablename__ = "health_readings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    parent_id = Column(Integer, ForeignKey("parents.id", ondelete="CASCADE"), nullable=False, index=True)
+    metric = Column(String(50), nullable=False, index=True)
+    value = Column(Float, nullable=False)
+    secondary_value = Column(Float, nullable=True)
+    unit = Column(String(30), nullable=False)
+    recorded_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+
+    parent = relationship("Parent", back_populates="health_readings")
 
 
 class Notification(Base):

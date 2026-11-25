@@ -156,10 +156,12 @@ export const Reports: React.FC = () => {
         const downloadUrl = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = `report_${id}.pdf`;
+        const report = reports.find((item) => item.id === id);
+        a.download = report?.original_filename || `report_${id}`;
         document.body.appendChild(a);
         a.click();
         a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
       })
       .catch((err) => {
         alert('Could not download file: ' + err.message);

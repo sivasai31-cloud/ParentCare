@@ -1,16 +1,21 @@
 import os
+import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
 from app.core.database import Base, engine, SessionLocal
 from app.core.security import get_password_hash
 from app.models.models import User, UserRole
-from app.api import auth, parents, medicines, appointments, reports, emergency_contacts, notifications, dashboard, admin
+from app.api import auth, parents, medicines, appointments, reports, emergency_contacts, notifications, dashboard, admin, health_readings
+
+logger = logging.getLogger(__name__)
 
 # Path to the React production build
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static" / "dist"
@@ -20,38 +25,34 @@ async def lifespan(app: FastAPI):
     # Ensure database schema is created
     Base.metadata.create_all(bind=engine)
 
-    # Seed default users
-    db = SessionLocal()
-    try:
-        admin_user = db.query(User).filter(User.email == "admin@parentcare.com").first()
-        if not admin_user:
-            admin_user = User(
-                email="admin@parentcare.com",
-                hashed_password=get_password_hash("Admin123!"),
-                full_name="ParentCare Admin",
-                phone="+1 800-555-0199",
-                role=UserRole.ADMIN.value,
-                is_active=True
-            )
-            db.add(admin_user)
+    if os.getenv("SEED_DEMO_USERS", "").strip().lower() in {"1", "true", "yes"}:
+        if settings.APP_ENV == "production":
+            raise RuntimeError("Demo users cannot be seeded in production.")
+        db = SessionLocal()
+        try:
+            admin_user = db.query(User).filter(User.email == "admin@parentcare.com").first()
+            if not admin_user:
+                db.add(User(
+                    email="admin@parentcare.com",
+                    hashed_password=get_password_hash("Admin123!"),
+                    full_name="ParentCare Admin",
+                    phone="+1 800-555-0199",
+                    role=UserRole.ADMIN.value,
+                    is_active=True,
+                ))
+            demo_user = db.query(User).filter(User.email == "demo@parentcare.com").first()
+            if not demo_user:
+                db.add(User(
+                    email="demo@parentcare.com",
+                    hashed_password=get_password_hash("Demo123!"),
+                    full_name="Sarah Jenkins",
+                    phone="+1 555-018-9234",
+                    role=UserRole.USER.value,
+                    is_active=True,
+                ))
             db.commit()
-            print(">> [SEED] Default admin created: admin@parentcare.com / Admin123!")
-
-        demo_user = db.query(User).filter(User.email == "demo@parentcare.com").first()
-        if not demo_user:
-            demo_user = User(
-                email="demo@parentcare.com",
-                hashed_password=get_password_hash("Demo123!"),
-                full_name="Sarah Jenkins",
-                phone="+1 555-018-9234",
-                role=UserRole.USER.value,
-                is_active=True
-            )
-            db.add(demo_user)
-            db.commit()
-            print(">> [SEED] Demo user created: demo@parentcare.com / Demo123!")
-    finally:
-        db.close()
+        finally:
+            db.close()
 
     yield
 
@@ -66,28 +67,21 @@ app = FastAPI(
 # CORS — only needed when running frontend separately (dev mode)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://192.168.29.123:5173",
-        "https://localhost:5173",
-        "https://127.0.0.1:5173",
-        "https://192.168.29.123:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://localhost:3000",
-        "https://127.0.0.1:3000",
-        "http://localhost:4173",
-        "http://127.0.0.1:4173",
-        "https://localhost:4173",
-        "https://127.0.0.1:4173",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-    ],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/healthz", tags=["health"])
+def health_check():
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        logger.exception("Health check failed because the database is unavailable.")
+        raise HTTPException(status_code=503, detail="Database unavailable") from exc
+    return {"status": "ok"}
 
 # ── API Routers (must be registered BEFORE static file catch-all) ──
 app.include_router(auth.router, prefix=settings.API_V1_STR)
@@ -99,6 +93,7 @@ app.include_router(emergency_contacts.router, prefix=settings.API_V1_STR)
 app.include_router(notifications.router, prefix=settings.API_V1_STR)
 app.include_router(dashboard.router, prefix=settings.API_V1_STR)
 app.include_router(admin.router, prefix=settings.API_V1_STR)
+app.include_router(health_readings.router, prefix=settings.API_V1_STR)
 
 # ── Serve React Frontend ──
 if STATIC_DIR.exists():

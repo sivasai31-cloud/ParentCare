@@ -85,6 +85,10 @@ def test_full_workflow_and_endpoints(client):
     assert upload_res.status_code == 201
     report_id = upload_res.json()["id"]
 
+    download_res = client.get(f"/api/reports/{report_id}/file", headers=headers)
+    assert download_res.status_code == 200
+    assert download_res.content == file_content
+
     # 7. Test Dashboard Overview
     dash_res = client.get("/api/dashboard/overview", headers=headers)
     assert dash_res.status_code == 200
@@ -97,3 +101,9 @@ def test_full_workflow_and_endpoints(client):
     # 8. Test Notifications
     notif_res = client.get("/api/notifications", headers=headers)
     assert notif_res.status_code == 200
+
+
+def test_health_endpoint(client):
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}

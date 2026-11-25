@@ -77,6 +77,19 @@ export interface MedicalReport {
   parent_name?: string;
 }
 
+export interface HealthReading {
+  id: number;
+  parent_id: number;
+  parent_name?: string | null;
+  metric: 'blood_pressure' | 'blood_glucose' | 'temperature' | 'weight' | 'heart_rate';
+  value: number;
+  secondary_value?: number | null;
+  unit: string;
+  recorded_at: string;
+  notes?: string | null;
+  created_at: string;
+}
+
 export interface EmergencyContact {
   id: number;
   parent_id: number;

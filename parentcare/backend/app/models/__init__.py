@@ -12,6 +12,8 @@ from app.models.models import (
     ContactPriority,
     Notification,
     NotificationType,
+    HealthReading,
+    HealthMetric,
 )
 
 __all__ = [
@@ -28,4 +30,6 @@ __all__ = [
     "ContactPriority",
     "Notification",
     "NotificationType",
+    "HealthReading",
+    "HealthMetric",
 ]

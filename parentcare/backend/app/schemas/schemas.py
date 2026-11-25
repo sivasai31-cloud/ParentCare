@@ -1,6 +1,6 @@
-from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from datetime import datetime, timezone
+from typing import Optional, List, Literal
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, model_validator
 
 # --- AUTH & USER SCHEMAS ---
 class UserBase(BaseModel):
@@ -192,6 +192,40 @@ class EmergencyContactResponse(EmergencyContactBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    parent_name: Optional[str] = None
+
+
+# --- HEALTH READINGS ---
+class HealthReadingCreate(BaseModel):
+    parent_id: int
+    metric: Literal["blood_pressure", "blood_glucose", "temperature", "weight", "heart_rate"]
+    value: float = Field(..., gt=0, le=1000)
+    secondary_value: Optional[float] = Field(None, gt=0, le=1000)
+    unit: str = Field(..., min_length=1, max_length=30)
+    recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    notes: Optional[str] = Field(None, max_length=2000)
+
+    @model_validator(mode="after")
+    def validate_reading_values(self):
+        if self.metric == "blood_pressure" and self.secondary_value is None:
+            raise ValueError("Blood pressure requires systolic and diastolic values.")
+        if self.metric != "blood_pressure" and self.secondary_value is not None:
+            raise ValueError("A second value is only supported for blood pressure.")
+        return self
+
+
+class HealthReadingResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    parent_id: int
+    metric: str
+    value: float
+    secondary_value: Optional[float] = None
+    unit: str
+    recorded_at: datetime
+    notes: Optional[str] = None
+    created_at: datetime
     parent_name: Optional[str] = None
 
 
